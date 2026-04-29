@@ -1,9 +1,9 @@
 // Service Worker for 塔罗初学之旅 PWA
-const CACHE_NAME = 'taro-tarot-v1';
+const CACHE_NAME = 'taro-tarot-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json'
 ];
 
 // Install event - cache static assets
