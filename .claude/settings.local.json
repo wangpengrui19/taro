@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(npm run *)",
-      "Bash(identify \"C:/Users/wangpr/Desktop/ai_game/taro/assets/icon.png\")"
+      "Bash(identify \"C:/Users/wangpr/Desktop/ai_game/taro/assets/icon.png\")",
+      "Bash(cp assets/icon.png public/icons/icon-512.png)",
+      "Bash(cp assets/icon.png public/icons/icon-192.png)",
+      "Bash(cp assets/icon.png public/icons/apple-touch-icon.png)",
+      "Bash(cp assets/icon.png public/icons/icon-180.png)",
+      "Bash(cp assets/icon_180.png public/icons/apple-touch-icon.png)",
+      "Bash(cp assets/icon_180.png public/icons/icon-192.png)",
+      "Bash(cp assets/icon_180.png public/icons/icon-512.png)",
+      "Bash(file *)",
+      "Bash(cp assets/icon_192.png public/icons/icon-192.png)",
+      "Bash(cp assets/icon_512.png public/icons/icon-512.png)"
     ]
   }
 }

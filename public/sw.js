@@ -1,5 +1,5 @@
 // Service Worker for 塔罗初学之旅 PWA
-const CACHE_NAME = 'taro-tarot-v4';
+const CACHE_NAME = 'taro-tarot-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',
