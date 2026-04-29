@@ -1,0 +1,40 @@
+{
+  "name": "塔罗初学之旅",
+  "short_name": "塔罗",
+  "description": "初学者塔罗牌学习应用，探索78张韦特塔罗牌，每日抽牌，学习牌阵",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a0942",
+  "theme_color": "#1a0942",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education"],
+  "shortcuts": [
+    {
+      "name": "每日抽牌",
+      "short_name": "抽牌",
+      "url": "/draw",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "牌阵",
+      "short_name": "牌阵",
+      "url": "/spreads",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}

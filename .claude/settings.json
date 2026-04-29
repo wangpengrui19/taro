@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "sk-Cz16MUw0eNWqGA8VL8iRgKkcXfaVXatitFoK9YTHtOwoqhly",
+    "ANTHROPIC_BASE_URL": "https://newapi.inner.youdao.com",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1",
+    "API_TIMEOUT_MS": "300000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1
+  }
+}
