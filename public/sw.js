@@ -1,5 +1,5 @@
 // Service Worker for 塔罗初学之旅 PWA
-const CACHE_NAME = 'taro-tarot-v5';
+const CACHE_NAME = 'taro-tarot-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -17,11 +17,10 @@ self.addEventListener('install', (event) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  // 强制激活，不等待旧的SW退出
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches and force refresh
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -33,16 +32,8 @@ self.addEventListener('activate', (event) => {
             return caches.delete(name);
           })
       );
-    }).then(() => {
-      // 强制所有客户端刷新，确保使用新版本
-      return self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: 'FORCE_REFRESH' });
-        });
-      });
     })
   );
-  // 立即控制所有客户端
   self.clients.claim();
 });
 
