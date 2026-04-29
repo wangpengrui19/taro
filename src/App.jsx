@@ -1,5 +1,6 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect } from 'react';
 import HomePage from './pages/HomePage.jsx';
 import DeckPage from './pages/DeckPage.jsx';
 import CardDetailPage from './pages/CardDetailPage.jsx';
@@ -32,6 +33,24 @@ function PageWrapper({ children }) {
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // 监听Service Worker消息，强制刷新时重定向到首页
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'FORCE_REFRESH') {
+        navigate('/', { replace: true });
+        window.location.reload();
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      };
+    }
+  }, [navigate]);
 
   return (
     <div className="relative min-h-full starfield">

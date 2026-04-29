@@ -7,6 +7,7 @@ import CrystalOrbsCanvas from '../components/CrystalOrbsCanvas.jsx';
 
 const ENTRANCE_DURATION = 1400; // ms，入场动画时长
 const HANDOFF_T01 = 0.78; // 在此进度移交物理，保留残余速度
+const FIRST_OPEN_KEY = 'taro-first-opened'; // localStorage键名
 
 // easeOutCubic：快出慢入，模拟水晶球从角落飞出后减速落位
 function easeOutCubic(t) {
@@ -23,6 +24,16 @@ function isWebGLAvailable() {
   }
 }
 
+// 检查是否是首次打开app
+function isFirstOpen() {
+  return !localStorage.getItem(FIRST_OPEN_KEY);
+}
+
+// 标记app已打开过
+function markAsOpened() {
+  localStorage.setItem(FIRST_OPEN_KEY, 'true');
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const fieldRef = useRef(null);
@@ -36,9 +47,12 @@ export default function HomePage() {
   const entranceStartedRef = useRef(false);
   const handoffVelRef = useRef(null);
   const handoffPosRef = useRef(null);
+  const isFirstOpenRef = useRef(false);
 
   useEffect(() => {
     setWebglSupported(isWebGLAvailable());
+    // 检查是否是首次打开
+    isFirstOpenRef.current = isFirstOpen();
   }, []);
 
   // 5 个 home 点：四角 + 中心（major 放中心）
@@ -79,6 +93,14 @@ export default function HomePage() {
     if (size.w <= 0 || entranceStartedRef.current) return;
     entranceStartedRef.current = true;
 
+    // 如果不是首次打开，直接启用物理引擎，跳过开屏动画
+    if (!isFirstOpenRef.current) {
+      setEntranceEase(1);
+      setPhysicsEnabled(true);
+      return;
+    }
+
+    // 首次打开：播放开屏动画
     // 先设 ease=0，触发 canvas 挂载（orbs 在左上角）
     setEntranceEase(0);
 
@@ -102,6 +124,8 @@ export default function HomePage() {
         }));
         // 入场完成，交给物理引擎接管
         setPhysicsEnabled(true);
+        // 标记app已打开过
+        markAsOpened();
       }
     };
     entranceRafRef.current = requestAnimationFrame(animate);
@@ -110,11 +134,14 @@ export default function HomePage() {
   }, [size.w]);
 
   // 入场期间：按 ease 从 (0,0) 插值到 home；完成后直接用物理位置
+  // 非首次打开时，直接使用物理位置
   const displayPositions = useMemo(() => {
     if (entranceEase === null) return [];
-    if (!physicsEnabled) {
+    if (!physicsEnabled && entranceEase < 1) {
+      // 开屏动画期间：从左上角飞到目标位置
       return homes.map((h) => ({ x: h.x * entranceEase, y: h.y * entranceEase }));
     }
+    // 物理引擎启用后：使用物理位置
     return physicsPositions;
   }, [entranceEase, physicsEnabled, physicsPositions, homes]);
 
