@@ -9,6 +9,7 @@
   "background_color": "#1a0942",
   "theme_color": "#1a0942",
   "lang": "zh-CN",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "./icons/icon-192.png",
