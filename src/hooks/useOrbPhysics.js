@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const DEFAULTS = {
   springK: 0.0007,
@@ -24,25 +24,47 @@ function randRange(min, max) {
   return min + Math.random() * (max - min);
 }
 
-function makeDrift(radius, cfg) {
+// 入场落位后，漂移目标在入场方向上的初始偏置（px）
+// 使弹簧力在 t=0 指向入场方向，与入场动画无缝衔接
+const ENTRANCE_DRIFT_BIAS = 50;
+
+/**
+ * @param {number} radius
+ * @param {object} cfg
+ * @param {{x:number,y:number}|null} entranceDir  入场单位方向向量，初次加载时传入
+ */
+function makeDrift(radius, cfg, entranceDir) {
+  const ax1 = radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor);
+  const ax2 = radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor) * 0.6;
+  const ay1 = radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor);
+  const ay2 = radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor) * 0.6;
+
+  // 主正弦初始相位：有入场方向时，令 ax1·sin(px1) = BIAS·dir.x
+  // 使物理 t=0 时漂移目标恰好在 home 前方 BIAS px 处（入场方向）
+  const clamp1 = (v) => Math.max(-1, Math.min(1, v));
+  const px1 = entranceDir
+    ? Math.asin(clamp1((entranceDir.x * ENTRANCE_DRIFT_BIAS) / ax1))
+    : Math.random() * Math.PI * 2;
+  const py1 = entranceDir
+    ? Math.asin(clamp1((entranceDir.y * ENTRANCE_DRIFT_BIAS) / ay1))
+    : Math.random() * Math.PI * 2;
+
   return {
     wx1: randRange(cfg.driftFreqMin, cfg.driftFreqMax),
     wx2: randRange(cfg.driftFreqMin, cfg.driftFreqMax),
     wy1: randRange(cfg.driftFreqMin, cfg.driftFreqMax),
     wy2: randRange(cfg.driftFreqMin, cfg.driftFreqMax),
-    px1: Math.random() * Math.PI * 2,
+    px1,
     px2: Math.random() * Math.PI * 2,
-    py1: Math.random() * Math.PI * 2,
+    py1,
     py2: Math.random() * Math.PI * 2,
-    ax1: radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor),
-    ax2: radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor) * 0.6,
-    ay1: radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor),
-    ay2: radius * randRange(cfg.driftAmpMinFactor, cfg.driftAmpMaxFactor) * 0.6
+    ax1, ax2, ay1, ay2
   };
 }
 
 /**
  * 非线性弹簧 + 正弦漂移 + 非线性排斥 + 切线分量反转的水晶球物理。
+ * 入场动画由调用方（HomePage）控制，本 hook 只负责稳态漂移物理。
  *
  * @param {{
  *   homes: {x:number,y:number}[],
@@ -52,9 +74,10 @@ function makeDrift(radius, cfg) {
  *   tuning?: Partial<typeof DEFAULTS>
  * }} opts
  */
-export function useOrbPhysics({ homes, size, orbRadius = 56, enabled = true, tuning }) {
+export function useOrbPhysics({ homes, size, orbRadius = 56, enabled = true, tuning, initialVelocities, initialPositions }) {
   const cfg = { ...DEFAULTS, ...tuning };
-  const [positions, setPositions] = useState(() => homes.map((h) => ({ x: h.x, y: h.y })));
+  // null 表示尺寸还未就绪，防止 canvas 在零坐标处闪现
+  const [positions, setPositions] = useState(null);
   const stateRef = useRef(null);
   const rafRef = useRef(0);
   const startRef = useRef(performance.now());
@@ -68,15 +91,28 @@ export function useOrbPhysics({ homes, size, orbRadius = 56, enabled = true, tun
       !current || current.positions.length !== homes.length || sizeBecameValid;
 
     if (needsReset) {
+      // 初次加载（size 由 0 变有效）时，计算每颗球的入场方向（原点→home）
+      // 用于偏置漂移初始相位，使漂移自然延续入场动画的运动方向
+      const entranceDirs =
+        size.w > 0 && size.h > 0
+          ? homes.map((h) => {
+              const d = Math.hypot(h.x, h.y) || 1;
+              return { x: h.x / d, y: h.y / d };
+            })
+          : null;
+
       stateRef.current = {
         positions: homes.map((h) => ({ x: h.x, y: h.y })),
         velocities: homes.map(() => ({ x: 0, y: 0 })),
-        drifts: homes.map(() => makeDrift(orbRadius, cfg)),
+        drifts: homes.map((_, i) => makeDrift(orbRadius, cfg, entranceDirs?.[i])),
         homes,
         size,
         orbRadius
       };
-      setPositions(homes.map((h) => ({ x: h.x, y: h.y })));
+      // 只有 size 有效时才推到 React state，避免零坐标先渲染一帧
+      if (size.w > 0 && size.h > 0) {
+        setPositions(homes.map((h) => ({ x: h.x, y: h.y })));
+      }
     } else {
       current.homes = homes;
       current.size = size;
@@ -94,8 +130,29 @@ export function useOrbPhysics({ homes, size, orbRadius = 56, enabled = true, tun
     }
   }, [JSON.stringify(homes), size.w, size.h, orbRadius]);
 
+  // 入场完成时：在首次绘制前注入初始位置和速度，消除跳帧
+  // useLayoutEffect 在 DOM 提交后、浏览器绘制前同步运行，确保第一帧无位置跳变
+  useLayoutEffect(() => {
+    if (!enabled || !stateRef.current) return;
+    if (initialPositions) {
+      initialPositions.forEach((p, i) => {
+        const s = stateRef.current.positions[i];
+        if (s) { s.x = p.x; s.y = p.y; }
+      });
+      setPositions(initialPositions.map((p) => ({ ...p })));
+    }
+    if (initialVelocities) {
+      initialVelocities.forEach((v, i) => {
+        const s = stateRef.current.velocities[i];
+        if (s) { s.x = v.x; s.y = v.y; }
+      });
+    }
+  }, [enabled]);
+
   useEffect(() => {
     if (!enabled) return;
+    // 重置漂移时钟：t=0 时漂移目标恰好在入场方向偏置位置，使弹簧力延续入场动量
+    startRef.current = performance.now();
     let last = performance.now();
 
     const tick = (now) => {
@@ -233,5 +290,5 @@ export function useOrbPhysics({ homes, size, orbRadius = 56, enabled = true, tun
     return () => cancelAnimationFrame(rafRef.current);
   }, [enabled]);
 
-  return positions;
+  return positions ?? [];
 }

@@ -5,6 +5,14 @@ import { useSize } from '../hooks/useSize.js';
 import { useOrbPhysics } from '../hooks/useOrbPhysics.js';
 import CrystalOrbsCanvas from '../components/CrystalOrbsCanvas.jsx';
 
+const ENTRANCE_DURATION = 1400; // ms，入场动画时长
+const HANDOFF_T01 = 0.78; // 在此进度移交物理，保留残余速度
+
+// easeOutCubic：快出慢入，模拟水晶球从角落飞出后减速落位
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 // 检测WebGL是否可用
 function isWebGLAvailable() {
   try {
@@ -20,6 +28,14 @@ export default function HomePage() {
   const fieldRef = useRef(null);
   const size = useSize(fieldRef);
   const [webglSupported, setWebglSupported] = useState(true);
+
+  const [entranceEase, setEntranceEase] = useState(null);
+  // 入场完成后才开启物理漂移，确保物理从 home 位置以零速度出发
+  const [physicsEnabled, setPhysicsEnabled] = useState(false);
+  const entranceRafRef = useRef(0);
+  const entranceStartedRef = useRef(false);
+  const handoffVelRef = useRef(null);
+  const handoffPosRef = useRef(null);
 
   useEffect(() => {
     setWebglSupported(isWebGLAvailable());
@@ -46,12 +62,64 @@ export default function HomePage() {
   }, []);
 
   const radius = Math.max(42, Math.min(64, size.w * 0.12));
-  const positions = useOrbPhysics({
+
+  // 物理漂移（入场完成后才 enabled）
+  const physicsPositions = useOrbPhysics({
     homes,
     size,
     orbRadius: radius,
-    enabled: size.w > 0
+    enabled: physicsEnabled,
+    initialPositions: handoffPosRef.current,
+    initialVelocities: handoffVelRef.current
   });
+
+  // 当 size 首次就绪时，启动入场 rAF 循环
+  // rAF 在 canvas 已挂载的同一帧驱动，timing 与首帧渲染严格对齐
+  useEffect(() => {
+    if (size.w <= 0 || entranceStartedRef.current) return;
+    entranceStartedRef.current = true;
+
+    // 先设 ease=0，触发 canvas 挂载（orbs 在左上角）
+    setEntranceEase(0);
+
+    let startTime = null;
+    const animate = (now) => {
+      if (startTime === null) startTime = now;
+      const t01Raw = (now - startTime) / ENTRANCE_DURATION;
+      const t01 = Math.min(HANDOFF_T01, t01Raw);
+      setEntranceEase(easeOutCubic(t01));
+      if (t01Raw < HANDOFF_T01) {
+        entranceRafRef.current = requestAnimationFrame(animate);
+      } else {
+        // 记录入场终止时的精确位置和残余速度，供物理引擎无缝接管
+        const ease = easeOutCubic(HANDOFF_T01);
+        handoffPosRef.current = homes.map((h) => ({ x: h.x * ease, y: h.y * ease }));
+        const dedt = 3 * Math.pow(1 - HANDOFF_T01, 2);
+        const speedPerUnit = (dedt / ENTRANCE_DURATION) * 16.67;
+        handoffVelRef.current = homes.map((h) => ({
+          x: h.x * speedPerUnit,
+          y: h.y * speedPerUnit
+        }));
+        // 入场完成，交给物理引擎接管
+        setPhysicsEnabled(true);
+      }
+    };
+    entranceRafRef.current = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(entranceRafRef.current);
+  }, [size.w]);
+
+  // 入场期间：按 ease 从 (0,0) 插值到 home；完成后直接用物理位置
+  const displayPositions = useMemo(() => {
+    if (entranceEase === null) return [];
+    if (!physicsEnabled) {
+      return homes.map((h) => ({ x: h.x * entranceEase, y: h.y * entranceEase }));
+    }
+    return physicsPositions;
+  }, [entranceEase, physicsEnabled, physicsPositions, homes]);
+
+  // canvas 在入场动画一开始就挂载（entranceEase >= 0），之后持续更新
+  const orbsReady = entranceEase !== null;
 
   return (
     <section className="px-5 pt-10 safe-top">
@@ -78,10 +146,10 @@ export default function HomePage() {
           }}
         />
 
-        {size.w > 0 && (
+        {orbsReady && (
           <CrystalOrbsCanvas
             groups={orderedGroups}
-            positions={positions}
+            positions={displayPositions}
             radius={radius}
             size={size}
             onSelect={(id) => navigate(`/deck/${id}`)}
