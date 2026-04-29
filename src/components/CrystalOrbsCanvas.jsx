@@ -155,10 +155,19 @@ export default function CrystalOrbsCanvas({ groups, positions, radius, onSelect 
       gl={{
         alpha: true,
         antialias: true,
-        powerPreference: 'high-performance'
+        powerPreference: 'high-performance',
+        // iOS 兼容性
+        preserveDrawingBuffer: true,
+        stencil: false
       }}
       dpr={[1, 1.5]}
       style={{ position: 'absolute', inset: 0 }}
+      // iOS PWA 兼容性：确保 canvas 正确初始化
+      onCreated={({ gl }) => {
+        if (gl) {
+          gl.setClearColor(0x000000, 0);
+        }
+      }}
     >
       <SceneContent
         groups={groups}

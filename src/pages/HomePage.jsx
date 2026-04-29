@@ -1,14 +1,29 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deckGroups } from '../data/deckGroups.js';
 import { useSize } from '../hooks/useSize.js';
 import { useOrbPhysics } from '../hooks/useOrbPhysics.js';
 import CrystalOrbsCanvas from '../components/CrystalOrbsCanvas.jsx';
 
+// 检测WebGL是否可用
+function isWebGLAvailable() {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+  } catch (e) {
+    return false;
+  }
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const fieldRef = useRef(null);
   const size = useSize(fieldRef);
+  const [webglSupported, setWebglSupported] = useState(true);
+
+  useEffect(() => {
+    setWebglSupported(isWebGLAvailable());
+  }, []);
 
   // 5 个 home 点：四角 + 中心（major 放中心）
   const homes = useMemo(() => {
