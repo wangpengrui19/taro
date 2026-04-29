@@ -1,5 +1,5 @@
 // Service Worker for 塔罗初学之旅 PWA
-const CACHE_NAME = 'taro-tarot-v3';
+const CACHE_NAME = 'taro-tarot-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -27,7 +27,10 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('Deleting old cache:', name);
+            return caches.delete(name);
+          })
       );
     })
   );

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(identify \"C:/Users/wangpr/Desktop/ai_game/taro/assets/icon.png\")"
     ]
   }
 }
