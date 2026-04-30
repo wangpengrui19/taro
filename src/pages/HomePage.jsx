@@ -135,7 +135,7 @@ export default function HomePage() {
       <div
         ref={fieldRef}
         className="relative w-full rounded-3xl overflow-hidden"
-        style={{ height: 'min(70vh, 560px)' }}
+        style={{ height: 'min(calc(100vh - 240px), 520px)' }}
       >
         {/* 氛围光背景（在 canvas 之下） */}
         <div

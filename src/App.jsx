@@ -35,7 +35,7 @@ export default function App() {
 
   return (
     <div className="relative min-h-full starfield">
-      <div className="relative z-10 pb-28">
+      <div className="relative z-10 pb-36">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />

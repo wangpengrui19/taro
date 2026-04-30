@@ -10,21 +10,56 @@ function pickCard() {
   return { card, reversed };
 }
 
+// 背扣的静止牌叠（初始状态）
+function IdleStack() {
+  const configs = [
+    { rotate: -6, x: -10, zIndex: 0 },
+    { rotate: 1,  x: 2,   zIndex: 1 },
+    { rotate: 7,  x: 10,  zIndex: 2 },
+  ];
+  return (
+    <motion.div
+      key="idle-stack"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="relative w-[160px] h-[240px]"
+    >
+      {configs.map((cfg, i) => (
+        <motion.div
+          key={i}
+          className="absolute inset-0 rounded-2xl glass-dark"
+          style={{ rotate: cfg.rotate, x: cfg.x, zIndex: cfg.zIndex, boxShadow: '0 12px 30px rgba(0,0,0,0.4)' }}
+          animate={{ y: [i * 3, i * 3 - 5, i * 3] }}
+          transition={{ duration: 3.2 + i * 0.6, repeat: Infinity, delay: i * 0.45, ease: 'easeInOut' }}
+        >
+          <div className="absolute inset-2 rounded-xl border border-white/20 flex items-center justify-center">
+            <span className="title-mystic text-white/50 text-xs tracking-widest">TAROT</span>
+          </div>
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}
+
 export default function DrawPage() {
-  const [draw, setDraw] = useState(null); // { card, reversed }
+  const [draw, setDraw] = useState(null);
   const [shuffling, setShuffling] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
   const handleDraw = () => {
     setShuffling(true);
     setRevealed(false);
-    // 洗牌过程 —— 给用户一点期待感
     setTimeout(() => {
       setDraw(pickCard());
       setShuffling(false);
-      // 下一帧开始翻牌
       requestAnimationFrame(() => setRevealed(true));
     }, 700);
+  };
+
+  const handleReset = () => {
+    setDraw(null);
+    setRevealed(false);
   };
 
   return (
@@ -32,7 +67,7 @@ export default function DrawPage() {
       <header className="text-center mb-4">
         <h1 className="title-mystic text-xl font-semibold text-white glow-text">每日一牌</h1>
         <p className="text-white/65 text-[12px] mt-1 leading-relaxed">
-          深呼吸，把注意力放在今天你想带着的一个问题上，再点击洗牌。
+          深呼吸，把注意力放在今天你想带着的一个问题上，再点击抽牌。
         </p>
       </header>
 
@@ -40,18 +75,7 @@ export default function DrawPage() {
         {/* 卡片显示区 */}
         <div className="relative h-[360px] w-[240px] flex items-center justify-center">
           <AnimatePresence mode="wait">
-            {!draw && !shuffling && (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-center text-white/50 text-sm px-6"
-              >
-                尚未抽牌 —— <br />
-                点击下方按钮，让一张牌成为你今天的镜子。
-              </motion.div>
-            )}
+            {!draw && !shuffling && <IdleStack />}
 
             {shuffling && (
               <motion.div
@@ -65,18 +89,12 @@ export default function DrawPage() {
                   <motion.div
                     key={i}
                     className="absolute inset-0 rounded-2xl glass-dark"
-                    style={{
-                      boxShadow: '0 12px 30px rgba(0,0,0,0.4)'
-                    }}
+                    style={{ boxShadow: '0 12px 30px rgba(0,0,0,0.4)' }}
                     animate={{
                       rotate: [0, i === 0 ? -6 : i === 2 ? 6 : 0, 0],
                       y: [0, -10, 0]
                     }}
-                    transition={{
-                      duration: 0.6,
-                      repeat: Infinity,
-                      delay: i * 0.12
-                    }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.12 }}
                   >
                     <div className="absolute inset-2 rounded-xl border border-white/20 flex items-center justify-center">
                       <span className="title-mystic text-white/60 text-xs tracking-widest">
@@ -105,7 +123,7 @@ export default function DrawPage() {
                 >
                   {/* 背面 */}
                   <div
-                    className="absolute inset-0 rounded-2xl glass-dark flex items-center justify-center backface-hidden rotate-y-180"
+                    className="absolute inset-0 rounded-2xl glass-dark flex items-center justify-center backface-hidden"
                     style={{
                       boxShadow: '0 16px 36px rgba(0,0,0,0.5)',
                       transform: 'rotateY(180deg)'
@@ -120,9 +138,7 @@ export default function DrawPage() {
                   {/* 正面 */}
                   <div
                     className="absolute inset-0 backface-hidden"
-                    style={{
-                      transform: draw.reversed ? 'rotate(180deg)' : 'none'
-                    }}
+                    style={{ transform: draw.reversed ? 'rotate(180deg)' : 'none' }}
                   >
                     <CardImage card={draw.card} className="w-full h-full" />
                   </div>
@@ -179,25 +195,32 @@ export default function DrawPage() {
           )}
         </AnimatePresence>
 
-        {/* 按钮 */}
+        {/* 按钮区 */}
         <div className="mt-6 flex gap-3">
-          <button
-            onClick={handleDraw}
-            disabled={shuffling}
-            className="px-6 py-3 rounded-full glass-strong text-white text-sm font-medium tracking-wide active:scale-95 transition-transform disabled:opacity-50"
-          >
-            {draw ? '再抽一张' : '开始洗牌'}
-          </button>
-          {draw && (
+          {!draw ? (
             <button
-              onClick={() => {
-                setDraw(null);
-                setRevealed(false);
-              }}
-              className="px-5 py-3 rounded-full glass text-white/80 text-sm active:scale-95 transition-transform"
+              onClick={handleDraw}
+              disabled={shuffling}
+              className="px-6 py-3 rounded-full glass-strong text-white text-sm font-medium tracking-wide active:scale-95 transition-transform disabled:opacity-50"
             >
-              清空
+              抽牌
             </button>
+          ) : (
+            <>
+              <button
+                onClick={handleDraw}
+                disabled={shuffling}
+                className="px-6 py-3 rounded-full glass-strong text-white text-sm font-medium tracking-wide active:scale-95 transition-transform disabled:opacity-50"
+              >
+                抽牌
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-5 py-3 rounded-full glass text-white/80 text-sm active:scale-95 transition-transform"
+              >
+                重新洗牌
+              </button>
+            </>
           )}
         </div>
 
